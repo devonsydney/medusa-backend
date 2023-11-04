@@ -4,7 +4,8 @@ export async function POST(
   req: MedusaRequest,
   res: MedusaResponse
 ) {
-  const id = req.body.id // TODO get this to pull ID from the params instead of the body
+  const id = req.params.id
+
   const metadata = req.body.metadata
 
   const orderService = req.scope.resolve("orderService")

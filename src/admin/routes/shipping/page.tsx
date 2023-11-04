@@ -1,6 +1,6 @@
 import Medusa from "@medusajs/medusa-js"
 import { RouteConfig } from "@medusajs/admin"
-import React, { useState, useRef } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import { Checkbox, Container, Button, IconButton, Table, Tabs, Input } from "@medusajs/ui"
 import { RocketLaunch, CubeSolid, XCircleSolid } from "@medusajs/icons"
 import { formatAmount } from "medusa-react"
@@ -19,7 +19,8 @@ interface Metadata {
 
 const Shipping = () => {
   const medusa = new Medusa({baseUrl: process.env.MEDUSA_BACKEND_URL, maxRetries: 3})
-  const { mutate } = useAdminCustomPost(`/orders/metadata`,["order-metadata"])
+  const [orderBatch, setOrderBatch] = useState({ orderId: null, batchId: null }); // to track order ID and batch ID for mutation with useAdminCustomPost
+  const { mutate } = useAdminCustomPost(`/orders/${orderBatch.orderId}/metadata`, ["order-metadata"]);
   // state variables
   const [selectedFulfillmentOrders, setSelectedFulfillmentOrders] = useState([])
   const [selectedShippingFulfillments, setSelectedShippingFulfillments] = useState([])
@@ -122,21 +123,27 @@ const Shipping = () => {
     }
   };
 
-  const handleBatchAssign = async (batchId) => {
-    // batchId 0 to clear batch
-    for (const order of packingOrdersFiltered) {
-      const metadata: Metadata = batchId === 0 ? { batch: "" } : {
+  useEffect(() => {
+    if (orderBatch.orderId !== null && orderBatch.batchId !== null) {
+      const metadata: Metadata = orderBatch.batchId === 0 ? { batch: "" } : {
         batch: {
           batch_created: new Date().toISOString(),
-          batch_name: `Batch ${batchId}`,
-          batch_color: colors[batchId],
+          batch_name: `Batch ${orderBatch.batchId}`,
+          batch_color: colors[orderBatch.batchId],
         },
       };
       try {
-        await mutate({ id: order.id, metadata: metadata });
+        mutate({ metadata: metadata });
       } catch (error) {
-        console.error(`Failed to update order ${order.display_id}:`, error);
+        console.error(`Failed to update order ${orderBatch.orderId}:`, error);
       }
+    }
+  }, [orderBatch]);
+
+  const handleBatchAssign = async (batchId) => {
+    // batchId 0 to clear batch
+    for (const order of packingOrdersFiltered) {
+      await setOrderBatch({ orderId: order.id, batchId: batchId });
     }
     // refetch orders
     refetch();
